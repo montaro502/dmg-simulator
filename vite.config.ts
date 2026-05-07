@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: '/dmg-simulator/',
   build: {
-    outDir: 'dist',
+    outDir: 'docs',
     sourcemap: false,
   },
 })

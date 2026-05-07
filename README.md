@@ -11,9 +11,9 @@
 
 ## デモ
 
-https://your-github-username.github.io/dmg-simulator/
+https://montaro502.github.io/dmg-simulator/
 
-※ リポジトリの URL に合わせて更新してください
+※ リポジトリの URL に合わせて更新しています
 
 ## 開発
 
