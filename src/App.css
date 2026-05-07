@@ -184,6 +184,42 @@ body {
   min-width: 150px;
 }
 
+/* Checkbox Grid */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+  user-select: none;
+}
+
+.checkbox-group:hover {
+  background-color: var(--surface-dark);
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--secondary);
+}
+
+.checkbox-group span {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
 /* Result Section */
 .result-section {
   background: linear-gradient(135deg, rgba(211, 47, 47, 0.05), rgba(25, 118, 210, 0.05));

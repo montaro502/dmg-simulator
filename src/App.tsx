@@ -1,52 +1,100 @@
 import { useState } from 'react'
 import { calculateDamage, DamageInput, DamageOutput } from './utils/damageCalculator'
 
+interface AttackerStats {
+  atk: number
+  str: number
+  ratio: number
+}
+
+interface DefenderStats {
+  bossResistance: number
+  sizeResistance: number
+  raceResistance: number
+  elementResistance: number
+  mdef: number
+  mres: number
+  assum: boolean
+  enaco: boolean
+  ukumakura: boolean
+  kongou: boolean
+}
+
 function App() {
-  const [isPhysical, setIsPhysical] = useState(true)
-  const [input, setInput] = useState<DamageInput>({
+  const [attacker, setAttacker] = useState<AttackerStats>({
     atk: 100,
-    matk: 100,
-    def: 50,
-    mdef: 50,
-    level: 99,
-    skillAtk: 100,
-    cardDamage: 0,
-    elementalModifier: 0,
-    sizeModifier: 0,
-    isPhysical: true,
+    str: 50,
+    ratio: 100,
   })
+
+  const [defender, setDefender] = useState<DefenderStats>({
+    bossResistance: 0,
+    sizeResistance: 0,
+    raceResistance: 0,
+    elementResistance: 0,
+    mdef: 50,
+    mres: 50,
+    assum: false,
+    enaco: false,
+    ukumakura: false,
+    kongou: false,
+  })
+
   const [result, setResult] = useState<DamageOutput | null>(null)
 
-  const handleInputChange = (field: keyof DamageInput, value: number) => {
-    const newInput = { ...input, [field]: value, isPhysical }
-    setInput(newInput)
+  const handleAttackerChange = (field: keyof AttackerStats, value: number | boolean) => {
+    setAttacker({ ...attacker, [field]: value })
   }
 
-  const handleAttackTypeChange = (physical: boolean) => {
-    setIsPhysical(physical)
-    setInput({ ...input, isPhysical: physical })
+  const handleDefenderChange = (field: keyof DefenderStats, value: number | boolean) => {
+    const newDefender = { ...defender, [field]: value }
+    
+    // うずくまると金剛は排他的（どちらかしか選べない）
+    if (field === 'ukumakura' && value === true) {
+      newDefender.kongou = false
+    } else if (field === 'kongou' && value === true) {
+      newDefender.ukumakura = false
+    }
+    
+    setDefender(newDefender)
   }
 
   const handleCalculate = () => {
-    const damage = calculateDamage(input)
-    setResult(damage)
-  }
-
-  const handleReset = () => {
-    setInput({
-      atk: 100,
+    // ダメージ計算のロジックは後で実装
+    const damage = calculateDamage({
+      atk: attacker.atk,
       matk: 100,
       def: 50,
-      mdef: 50,
+      mdef: defender.mdef,
       level: 99,
-      skillAtk: 100,
+      skillAtk: attacker.ratio,
       cardDamage: 0,
       elementalModifier: 0,
       sizeModifier: 0,
       isPhysical: true,
     })
+    setResult(damage)
+  }
+
+  const handleReset = () => {
+    setAttacker({
+      atk: 100,
+      str: 50,
+      ratio: 100,
+    })
+    setDefender({
+      bossResistance: 0,
+      sizeResistance: 0,
+      raceResistance: 0,
+      elementResistance: 0,
+      mdef: 50,
+      mres: 50,
+      assum: false,
+      enaco: false,
+      ukumakura: false,
+      kongou: false,
+    })
     setResult(null)
-    setIsPhysical(true)
   }
 
   return (
@@ -58,151 +106,171 @@ function App() {
 
       <main className="main">
         <div className="calculator">
-          {/* 攻撃タイプ選択 */}
+          {/* 攻撃側（敵キャラ）のステータス */}
           <section className="section">
-            <h2>攻撃タイプ</h2>
-            <div className="button-group">
-              <button
-                className={`btn ${isPhysical ? 'btn-active' : ''}`}
-                onClick={() => handleAttackTypeChange(true)}
-              >
-                物理攻撃
-              </button>
-              <button
-                className={`btn ${!isPhysical ? 'btn-active' : ''}`}
-                onClick={() => handleAttackTypeChange(false)}
-              >
-                魔法攻撃
-              </button>
-            </div>
-          </section>
-
-          {/* 基本ステータス */}
-          <section className="section">
-            <h2>基本ステータス</h2>
+            <h2>攻撃側（敵キャラ）のステータス</h2>
             <div className="input-grid">
-              {isPhysical ? (
-                <div className="input-group">
-                  <label htmlFor="atk">攻撃力 (ATK)</label>
-                  <input
-                    id="atk"
-                    type="number"
-                    value={input.atk}
-                    onChange={(e) =>
-                      handleInputChange('atk', Number(e.target.value))
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="input-group">
-                  <label htmlFor="matk">魔法攻撃力 (MATK)</label>
-                  <input
-                    id="matk"
-                    type="number"
-                    value={input.matk}
-                    onChange={(e) =>
-                      handleInputChange('matk', Number(e.target.value))
-                    }
-                  />
-                </div>
-              )}
-
-              {isPhysical ? (
-                <div className="input-group">
-                  <label htmlFor="def">相手の防御力 (DEF)</label>
-                  <input
-                    id="def"
-                    type="number"
-                    value={input.def}
-                    onChange={(e) =>
-                      handleInputChange('def', Number(e.target.value))
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="input-group">
-                  <label htmlFor="mdef">相手の魔法防御力 (MDEF)</label>
-                  <input
-                    id="mdef"
-                    type="number"
-                    value={input.mdef}
-                    onChange={(e) =>
-                      handleInputChange('mdef', Number(e.target.value))
-                    }
-                  />
-                </div>
-              )}
-
               <div className="input-group">
-                <label htmlFor="level">自分のレベル</label>
+                <label htmlFor="atk">Atk</label>
                 <input
-                  id="level"
+                  id="atk"
                   type="number"
-                  value={input.level}
+                  value={attacker.atk}
                   onChange={(e) =>
-                    handleInputChange('level', Number(e.target.value))
+                    handleAttackerChange('atk', Number(e.target.value))
                   }
-                  min="1"
-                  max="255"
                 />
               </div>
-            </div>
-          </section>
 
-          {/* スキル及び補正値 */}
-          <section className="section">
-            <h2>スキル及び補正値</h2>
-            <div className="input-grid">
               <div className="input-group">
-                <label htmlFor="skillAtk">スキル攻撃倍率 (%)</label>
+                <label htmlFor="str">Str</label>
                 <input
-                  id="skillAtk"
+                  id="str"
                   type="number"
-                  value={input.skillAtk}
+                  value={attacker.str}
                   onChange={(e) =>
-                    handleInputChange('skillAtk', Number(e.target.value))
+                    handleAttackerChange('str', Number(e.target.value))
+                  }
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="ratio">倍率 (%)</label>
+                <input
+                  id="ratio"
+                  type="number"
+                  value={attacker.ratio}
+                  onChange={(e) =>
+                    handleAttackerChange('ratio', Number(e.target.value))
                   }
                   step="10"
                 />
               </div>
+            </div>
+          </section>
 
+          {/* 防御側（自キャラ）のステータス */}
+          <section className="section">
+            <h2>防御側（自キャラ）のステータス</h2>
+            <div className="input-grid">
               <div className="input-group">
-                <label htmlFor="cardDamage">カード効果ダメージ増加 (%)</label>
+                <label htmlFor="bossResistance">ボス耐性</label>
                 <input
-                  id="cardDamage"
+                  id="bossResistance"
                   type="number"
-                  value={input.cardDamage}
+                  value={defender.bossResistance}
                   onChange={(e) =>
-                    handleInputChange('cardDamage', Number(e.target.value))
+                    handleDefenderChange('bossResistance', Number(e.target.value))
                   }
                 />
               </div>
 
               <div className="input-group">
-                <label htmlFor="elementalModifier">属性修正 (%)</label>
+                <label htmlFor="sizeResistance">サイズ耐性</label>
                 <input
-                  id="elementalModifier"
+                  id="sizeResistance"
                   type="number"
-                  value={input.elementalModifier}
+                  value={defender.sizeResistance}
                   onChange={(e) =>
-                    handleInputChange('elementalModifier', Number(e.target.value))
+                    handleDefenderChange('sizeResistance', Number(e.target.value))
                   }
                 />
               </div>
 
-              {isPhysical && (
-                <div className="input-group">
-                  <label htmlFor="sizeModifier">サイズ補正 (%)</label>
-                  <input
-                    id="sizeModifier"
-                    type="number"
-                    value={input.sizeModifier}
-                    onChange={(e) =>
-                      handleInputChange('sizeModifier', Number(e.target.value))
-                    }
-                  />
-                </div>
-              )}
+              <div className="input-group">
+                <label htmlFor="raceResistance">種族耐性</label>
+                <input
+                  id="raceResistance"
+                  type="number"
+                  value={defender.raceResistance}
+                  onChange={(e) =>
+                    handleDefenderChange('raceResistance', Number(e.target.value))
+                  }
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="elementResistance">属性耐性</label>
+                <input
+                  id="elementResistance"
+                  type="number"
+                  value={defender.elementResistance}
+                  onChange={(e) =>
+                    handleDefenderChange('elementResistance', Number(e.target.value))
+                  }
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="mdef">Mdef</label>
+                <input
+                  id="mdef"
+                  type="number"
+                  value={defender.mdef}
+                  onChange={(e) =>
+                    handleDefenderChange('mdef', Number(e.target.value))
+                  }
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="mres">Mres</label>
+                <input
+                  id="mres"
+                  type="number"
+                  value={defender.mres}
+                  onChange={(e) =>
+                    handleDefenderChange('mres', Number(e.target.value))
+                  }
+                />
+              </div>
+            </div>
+
+            {/* チェックボックスセクション */}
+            <div className="checkbox-grid">
+              <label className="checkbox-group">
+                <input
+                  type="checkbox"
+                  checked={defender.assum}
+                  onChange={(e) =>
+                    handleDefenderChange('assum', e.target.checked)
+                  }
+                />
+                <span>アスム</span>
+              </label>
+
+              <label className="checkbox-group">
+                <input
+                  type="checkbox"
+                  checked={defender.enaco}
+                  onChange={(e) =>
+                    handleDefenderChange('enaco', e.target.checked)
+                  }
+                />
+                <span>エナコ</span>
+              </label>
+
+              <label className="checkbox-group">
+                <input
+                  type="checkbox"
+                  checked={defender.ukumakura}
+                  onChange={(e) =>
+                    handleDefenderChange('ukumakura', e.target.checked)
+                  }
+                />
+                <span>うずくまる</span>
+              </label>
+
+              <label className="checkbox-group">
+                <input
+                  type="checkbox"
+                  checked={defender.kongou}
+                  onChange={(e) =>
+                    handleDefenderChange('kongou', e.target.checked)
+                  }
+                />
+                <span>金剛</span>
+              </label>
             </div>
           </section>
 
