@@ -4,14 +4,17 @@
 
 export interface DamageInput {
   atk: number;           // 攻撃力
+  str: number;           // Str
   matk: number;          // 魔法攻撃力
-  def: number;           // 防御力
-  mdef: number;          // 魔法防御力
-  level: number;         // レベル
+  def: number;           // DEF（防御力）
+  mdef: number;          // MDEF（魔法防御力）
+  res: number;           // RES（レジスタンス）
+  mres: number;          // MRES
   skillAtk: number;      // スキル攻撃倍率（%）
-  cardDamage: number;    // カード及びセット効果（%）
-  elementalModifier: number;  // 属性修正（%）
-  sizeModifier: number;  // サイズ修正（%）
+  bossResistance: number;       // ボス耐性
+  sizeResistance: number;       // サイズ耐性
+  raceResistance: number;       // 種族耐性
+  elementResistance: number;    // 属性耐性
   isPhysical: boolean;   // 物理攻撃か魔法攻撃か
 }
 
@@ -22,39 +25,86 @@ export interface DamageOutput {
 }
 
 /**
+ * 防御力による軽減率を計算（物理攻撃）
+ * 軽減率(%) = 100-((4000 + DEF) / (4000 + DEF * 10)*100)
+ */
+function calcDefReduction(def: number): number {
+  return 100 - ((4000 + def) / (4000 + def * 10) * 100);
+}
+
+/**
+ * MDEF による軽減率を計算（魔法攻撃）
+ * 軽減率(%) = 100-((1000 + MDEF) / (1000 + MDEF * 10)*100)
+ */
+function calcMdefReduction(mdef: number): number {
+  return 100 - ((1000 + mdef) / (1000 + mdef * 10) * 100);
+}
+
+/**
+ * RES による軽減率を計算（物理攻撃）
+ * 軽減率 = 1 - (2000 + Res) / (2000 + Res * 5)
+ */
+function calcResReduction(res: number): number {
+  return 1 - (2000 + res) / (2000 + res * 5);
+}
+
+/**
+ * MRES による軽減率を計算（魔法攻撃）
+ * 軽減率 = 1 - (2000 + Mres) / (2000 + Mres * 5)
+ */
+function calcMresReduction(mres: number): number {
+  return 1 - (2000 + mres) / (2000 + mres * 5);
+}
+
+/**
+ * 耐性による軽減率を計算
+ */
+function calcResistanceReduction(resistance: number): number {
+  return resistance / 100;
+}
+
+/**
  * 物理ダメージを計算
  */
 function calculatePhysicalDamage(input: DamageInput): DamageOutput {
-  const baseAtk = input.atk;
-  const targetDef = input.def;
+  const ratio = input.skillAtk / 100;
   
-  // 防御力減減率
-  const defReduction = targetDef / (targetDef + 100);
+  // 基本ダメージ = (Str * 倍率) + (Atk * 倍率)
+  const strDamage = input.str * ratio;
+  const atkDamage = input.atk * ratio;
   
-  // 基本ダメージ（防御力を考慮）
-  const baseDmg = baseAtk * (1 - defReduction);
+  // 耐性軽減（種族耐性と属性耐性は両方に適用）
+  const raceResist = calcResistanceReduction(input.raceResistance);
+  const elementResist = calcResistanceReduction(input.elementResistance);
   
-  // スキル倍率を適用
-  let skillDmg = baseDmg * (input.skillAtk / 100);
+  // Atk部分への軽減
+  let atkAfterResist = atkDamage * (1 - raceResist) * (1 - elementResist);
   
-  // カード効果を適用
-  skillDmg = skillDmg * (1 + input.cardDamage / 100);
+  // ボス耐性とサイズ耐性はAtkだけに適用
+  const bossResist = calcResistanceReduction(input.bossResistance);
+  const sizeResist = calcResistanceReduction(input.sizeResistance);
+  atkAfterResist = atkAfterResist * (1 - bossResist) * (1 - sizeResist);
   
-  // 属性修正を適用
-  skillDmg = skillDmg * (1 + input.elementalModifier / 100);
+  // Str部分への軽減（種族耐性と属性耐性のみ）
+  let strAfterResist = strDamage * (1 - raceResist) * (1 - elementResist);
   
-  // サイズ修正を適用
-  skillDmg = skillDmg * (1 + input.sizeModifier / 100);
+  // DEF軽減
+  const defReduction = calcDefReduction(input.def) / 100;
+  atkAfterResist = atkAfterResist * (1 - defReduction);
+  
+  // RES軽減
+  const resReduction = calcResReduction(input.res);
+  const totalDamage = (strAfterResist + atkAfterResist) * (1 - resReduction);
   
   // 変動幅（±10%）
-  const minDamage = Math.floor(skillDmg * 0.9);
-  const maxDamage = Math.floor(skillDmg * 1.1);
+  const minDamage = Math.floor(totalDamage * 0.9);
+  const maxDamage = Math.floor(totalDamage * 1.1);
   const avgDamage = Math.floor((minDamage + maxDamage) / 2);
   
   return {
-    minDamage: Math.max(0, minDamage),
-    maxDamage: Math.max(0, maxDamage),
-    avgDamage: Math.max(0, avgDamage),
+    minDamage: Math.max(1, minDamage),
+    maxDamage: Math.max(1, maxDamage),
+    avgDamage: Math.max(1, avgDamage),
   };
 }
 
@@ -62,35 +112,36 @@ function calculatePhysicalDamage(input: DamageInput): DamageOutput {
  * 魔法ダメージを計算
  */
 function calculateMagicalDamage(input: DamageInput): DamageOutput {
-  const baseMAtk = input.matk;
-  const targetMDef = input.mdef;
+  const ratio = input.skillAtk / 100;
   
-  // 魔法防御力減減率
-  const mdefReduction = Math.max(0, 1 - targetMDef / (targetMDef + 100));
+  // 基本ダメージ = Matk * 倍率
+  let damage = input.matk * ratio;
   
-  // 基本ダメージ（魔法防御力を考慮）
-  const baseDmg = baseMAtk * mdefReduction;
+  // 耐性軽減（すべて適用）
+  const bossResist = calcResistanceReduction(input.bossResistance);
+  const sizeResist = calcResistanceReduction(input.sizeResistance);
+  const raceResist = calcResistanceReduction(input.raceResistance);
+  const elementResist = calcResistanceReduction(input.elementResistance);
   
-  // スキル倍率を適用
-  let skillDmg = baseDmg * (input.skillAtk / 100);
+  damage = damage * (1 - bossResist) * (1 - sizeResist) * (1 - raceResist) * (1 - elementResist);
   
-  // カード効果を適用
-  skillDmg = skillDmg * (1 + input.cardDamage / 100);
+  // MDEF軽減
+  const mdefReduction = calcMdefReduction(input.mdef) / 100;
+  damage = damage * (1 - mdefReduction);
   
-  // 属性修正を適用
-  skillDmg = skillDmg * (1 + input.elementalModifier / 100);
-  
-  // 魔法スキルはサイズ補正がない場合が多い
+  // MRES軽減
+  const mresReduction = calcMresReduction(input.mres);
+  damage = damage * (1 - mresReduction);
   
   // 変動幅（±10%）
-  const minDamage = Math.floor(skillDmg * 0.9);
-  const maxDamage = Math.floor(skillDmg * 1.1);
+  const minDamage = Math.floor(damage * 0.9);
+  const maxDamage = Math.floor(damage * 1.1);
   const avgDamage = Math.floor((minDamage + maxDamage) / 2);
   
   return {
-    minDamage: Math.max(0, minDamage),
-    maxDamage: Math.max(0, maxDamage),
-    avgDamage: Math.max(0, avgDamage),
+    minDamage: Math.max(1, minDamage),
+    maxDamage: Math.max(1, maxDamage),
+    avgDamage: Math.max(1, avgDamage),
   };
 }
 
@@ -104,3 +155,4 @@ export function calculateDamage(input: DamageInput): DamageOutput {
     return calculateMagicalDamage(input);
   }
 }
+

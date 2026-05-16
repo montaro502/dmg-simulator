@@ -1,10 +1,23 @@
-import { useState } from 'react'
-import { calculateDamage, DamageInput, DamageOutput } from './utils/damageCalculator'
+import { useState, useEffect } from 'react'
+import { calculateDamage, DamageOutput } from './utils/damageCalculator'
+import templatesData from './templates/attacker-templates.json'
 
 interface AttackerStats {
   atk: number
   str: number
+  matk: number
   ratio: number
+  isPhysical: boolean
+}
+
+interface Template {
+  id: string
+  name: string
+  atk: number
+  str: number
+  matk: number
+  ratio: number
+  isPhysical: boolean
 }
 
 interface DefenderStats {
@@ -12,8 +25,10 @@ interface DefenderStats {
   sizeResistance: number
   raceResistance: number
   elementResistance: number
+  def: number
   mdef: number
   mres: number
+  res: number
   assum: boolean
   enaco: boolean
   ukumakura: boolean
@@ -21,10 +36,14 @@ interface DefenderStats {
 }
 
 function App() {
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [attacker, setAttacker] = useState<AttackerStats>({
     atk: 100,
     str: 50,
+    matk: 100,
     ratio: 100,
+    isPhysical: true,
   })
 
   const [defender, setDefender] = useState<DefenderStats>({
@@ -32,8 +51,10 @@ function App() {
     sizeResistance: 0,
     raceResistance: 0,
     elementResistance: 0,
+    def: 50,
     mdef: 50,
     mres: 50,
+    res: 50,
     assum: false,
     enaco: false,
     ukumakura: false,
@@ -42,8 +63,56 @@ function App() {
 
   const [result, setResult] = useState<DamageOutput | null>(null)
 
+  const formatNumber = (value: number) => value.toLocaleString()
+  const parseNumberInput = (value: string) => Number(value.replace(/,/g, '') || 0)
+
+  // テンプレートを読み込む
+  useEffect(() => {
+    setTemplates(templatesData.templates)
+  }, [])
+
+  // パラメータが変更されたら自動計算
+  useEffect(() => {
+    const damage = calculateDamage({
+      atk: attacker.atk,
+      str: attacker.str,
+      matk: attacker.matk,
+      def: defender.def,
+      mdef: defender.mdef,
+      res: defender.res,
+      mres: defender.mres,
+      skillAtk: attacker.ratio,
+      bossResistance: defender.bossResistance,
+      sizeResistance: defender.sizeResistance,
+      raceResistance: defender.raceResistance,
+      elementResistance: defender.elementResistance,
+      isPhysical: attacker.isPhysical,
+    })
+    setResult(damage)
+  }, [attacker, defender])
+
   const handleAttackerChange = (field: keyof AttackerStats, value: number | boolean) => {
     setAttacker({ ...attacker, [field]: value })
+  }
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId)
+    
+    if (templateId === '') {
+      // 初期値にリセット
+      return
+    }
+    
+    const template = templates.find(t => t.id === templateId)
+    if (template) {
+      setAttacker({
+        atk: template.atk,
+        str: template.str,
+        matk: template.matk,
+        ratio: template.ratio,
+        isPhysical: template.isPhysical,
+      })
+    }
   }
 
   const handleDefenderChange = (field: keyof DefenderStats, value: number | boolean) => {
@@ -59,41 +128,36 @@ function App() {
     setDefender(newDefender)
   }
 
-  const handleCalculate = () => {
-    // ダメージ計算のロジックは後で実装
-    const damage = calculateDamage({
-      atk: attacker.atk,
-      matk: 100,
-      def: 50,
-      mdef: defender.mdef,
-      level: 99,
-      skillAtk: attacker.ratio,
-      cardDamage: 0,
-      elementalModifier: 0,
-      sizeModifier: 0,
-      isPhysical: true,
-    })
-    setResult(damage)
-  }
+  const preReductionDamage = Math.floor(
+    attacker.isPhysical
+      ? (attacker.atk + attacker.str) * (attacker.ratio / 100)
+      : attacker.matk * (attacker.ratio / 100)
+  )
 
   const handleReset = () => {
     setAttacker({
       atk: 100,
       str: 50,
+      matk: 100,
       ratio: 100,
+      isPhysical: true,
     })
+    setSelectedTemplate('')
     setDefender({
       bossResistance: 0,
       sizeResistance: 0,
       raceResistance: 0,
       elementResistance: 0,
+      def: 50,
       mdef: 50,
       mres: 50,
+      res: 50,
       assum: false,
       enaco: false,
       ukumakura: false,
       kongou: false,
     })
+    setSelectedTemplate('')
     setResult(null)
   }
 
@@ -106,18 +170,59 @@ function App() {
 
       <main className="main">
         <div className="calculator">
+          {/* テンプレート選択 */}
+          <section className="section">
+            <h2>攻撃キャラテンプレート</h2>
+            <div className="input-group">
+              <label htmlFor="template">テンプレート選択</label>
+              <select
+                id="template"
+                value={selectedTemplate}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+                className="template-select"
+              >
+                <option value="">-- 選択してください --</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+
           {/* 攻撃側（敵キャラ）のステータス */}
           <section className="section">
             <h2>攻撃側（敵キャラ）のステータス</h2>
+            
+            {/* 攻撃タイプ選択 */}
+            <div className="attack-type-selector">
+              <label>攻撃タイプ</label>
+              <div className="button-group">
+                <button
+                  className={`btn ${attacker.isPhysical ? 'btn-active' : ''}`}
+                  onClick={() => handleAttackerChange('isPhysical', true)}
+                >
+                  物理攻撃
+                </button>
+                <button
+                  className={`btn ${!attacker.isPhysical ? 'btn-active' : ''}`}
+                  onClick={() => handleAttackerChange('isPhysical', false)}
+                >
+                  魔法攻撃
+                </button>
+              </div>
+            </div>
+            
             <div className="input-grid">
               <div className="input-group">
                 <label htmlFor="atk">Atk</label>
                 <input
                   id="atk"
-                  type="number"
-                  value={attacker.atk}
+                  type="text"
+                  value={formatNumber(attacker.atk)}
                   onChange={(e) =>
-                    handleAttackerChange('atk', Number(e.target.value))
+                    handleAttackerChange('atk', parseNumberInput(e.target.value))
                   }
                 />
               </div>
@@ -126,10 +231,22 @@ function App() {
                 <label htmlFor="str">Str</label>
                 <input
                   id="str"
-                  type="number"
-                  value={attacker.str}
+                  type="text"
+                  value={formatNumber(attacker.str)}
                   onChange={(e) =>
-                    handleAttackerChange('str', Number(e.target.value))
+                    handleAttackerChange('str', parseNumberInput(e.target.value))
+                  }
+                />
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="matk">Matk</label>
+                <input
+                  id="matk"
+                  type="text"
+                  value={formatNumber(attacker.matk)}
+                  onChange={(e) =>
+                    handleAttackerChange('matk', parseNumberInput(e.target.value))
                   }
                 />
               </div>
@@ -138,12 +255,11 @@ function App() {
                 <label htmlFor="ratio">倍率 (%)</label>
                 <input
                   id="ratio"
-                  type="number"
-                  value={attacker.ratio}
+                  type="text"
+                  value={formatNumber(attacker.ratio)}
                   onChange={(e) =>
-                    handleAttackerChange('ratio', Number(e.target.value))
+                    handleAttackerChange('ratio', parseNumberInput(e.target.value))
                   }
-                  step="10"
                 />
               </div>
             </div>
@@ -151,78 +267,136 @@ function App() {
 
           {/* 防御側（自キャラ）のステータス */}
           <section className="section">
+            <div className="pre-damage-box">
+              <span className="pre-damage-label">軽減前ダメージ</span>
+              <span className="pre-damage-value">{preReductionDamage.toLocaleString()}</span>
+            </div>
             <h2>防御側（自キャラ）のステータス</h2>
-            <div className="input-grid">
-              <div className="input-group">
-                <label htmlFor="bossResistance">ボス耐性</label>
-                <input
-                  id="bossResistance"
-                  type="number"
-                  value={defender.bossResistance}
-                  onChange={(e) =>
-                    handleDefenderChange('bossResistance', Number(e.target.value))
-                  }
-                />
+            <div className="input-grid defense-grid">
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="bossResistance">ボス耐性 (%)</label>
+                  <input
+                    id="bossResistance"
+                    type="number"
+                    value={defender.bossResistance}
+                    onChange={(e) =>
+                      handleDefenderChange('bossResistance', Number(e.target.value))
+                    }
+                    min="0"
+                    max="95"
+                  />
+                </div>
               </div>
 
-              <div className="input-group">
-                <label htmlFor="sizeResistance">サイズ耐性</label>
-                <input
-                  id="sizeResistance"
-                  type="number"
-                  value={defender.sizeResistance}
-                  onChange={(e) =>
-                    handleDefenderChange('sizeResistance', Number(e.target.value))
-                  }
-                />
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="sizeResistance">サイズ耐性 (%)</label>
+                  <input
+                    id="sizeResistance"
+                    type="number"
+                    value={defender.sizeResistance}
+                    onChange={(e) =>
+                      handleDefenderChange('sizeResistance', Number(e.target.value))
+                    }
+                    min="0"
+                    max="95"
+                  />
+                </div>
               </div>
 
-              <div className="input-group">
-                <label htmlFor="raceResistance">種族耐性</label>
-                <input
-                  id="raceResistance"
-                  type="number"
-                  value={defender.raceResistance}
-                  onChange={(e) =>
-                    handleDefenderChange('raceResistance', Number(e.target.value))
-                  }
-                />
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="raceResistance">種族耐性 (%)</label>
+                  <input
+                    id="raceResistance"
+                    type="number"
+                    value={defender.raceResistance}
+                    onChange={(e) =>
+                      handleDefenderChange('raceResistance', Number(e.target.value))
+                    }
+                    min="0"
+                    max="95"
+                  />
+                </div>
               </div>
 
-              <div className="input-group">
-                <label htmlFor="elementResistance">属性耐性</label>
-                <input
-                  id="elementResistance"
-                  type="number"
-                  value={defender.elementResistance}
-                  onChange={(e) =>
-                    handleDefenderChange('elementResistance', Number(e.target.value))
-                  }
-                />
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="elementResistance">属性耐性 (%)</label>
+                  <input
+                    id="elementResistance"
+                    type="number"
+                    value={defender.elementResistance}
+                    onChange={(e) =>
+                      handleDefenderChange('elementResistance', Number(e.target.value))
+                    }
+                    min="0"
+                    max="95"
+                  />
+                </div>
               </div>
 
-              <div className="input-group">
-                <label htmlFor="mdef">Mdef</label>
-                <input
-                  id="mdef"
-                  type="number"
-                  value={defender.mdef}
-                  onChange={(e) =>
-                    handleDefenderChange('mdef', Number(e.target.value))
-                  }
-                />
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="def">Def</label>
+                  <input
+                    id="def"
+                    type="number"
+                    value={defender.def}
+                    onChange={(e) =>
+                      handleDefenderChange('def', Number(e.target.value))
+                    }
+                  />
+                </div>
+                {defender.assum && (
+                  <div className="stat-bonus">+{defender.def}</div>
+                )}
               </div>
 
-              <div className="input-group">
-                <label htmlFor="mres">Mres</label>
-                <input
-                  id="mres"
-                  type="number"
-                  value={defender.mres}
-                  onChange={(e) =>
-                    handleDefenderChange('mres', Number(e.target.value))
-                  }
-                />
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="mdef">Mdef</label>
+                  <input
+                    id="mdef"
+                    type="number"
+                    value={defender.mdef}
+                    onChange={(e) =>
+                      handleDefenderChange('mdef', Number(e.target.value))
+                    }
+                  />
+                </div>
+                {defender.assum && (
+                  <div className="stat-bonus">+{defender.mdef}</div>
+                )}
+              </div>
+
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="res">Res</label>
+                  <input
+                    id="res"
+                    type="number"
+                    value={defender.res}
+                    onChange={(e) =>
+                      handleDefenderChange('res', Number(e.target.value))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="mres">Mres</label>
+                  <input
+                    id="mres"
+                    type="number"
+                    value={defender.mres}
+                    onChange={(e) =>
+                      handleDefenderChange('mres', Number(e.target.value))
+                    }
+                  />
+                </div>
               </div>
             </div>
 
@@ -276,9 +450,6 @@ function App() {
 
           {/* 計算ボタン */}
           <section className="section button-section">
-            <button className="btn btn-primary" onClick={handleCalculate}>
-              計算する
-            </button>
             <button className="btn btn-secondary" onClick={handleReset}>
               リセット
             </button>

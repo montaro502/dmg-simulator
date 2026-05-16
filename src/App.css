@@ -144,6 +144,11 @@ body {
   gap: 16px;
 }
 
+.defense-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
@@ -167,6 +172,76 @@ body {
 }
 
 .input-group input:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+/* Stat with Bonus */
+.stat-with-bonus {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.stat-input-group {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 100px;
+}
+
+.stat-input-group label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.stat-input-group input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-primary);
+  transition: border-color 0.3s ease;
+}
+
+.stat-input-group input:focus {
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.stat-bonus {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  color: var(--success);
+  font-weight: 600;
+  background: var(--surface-dark);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Template Select */
+.template-select {
+  padding: 10px 12px;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.template-select:hover {
+  border-color: var(--secondary);
+}
+
+.template-select:focus {
   outline: none;
   border-color: var(--secondary);
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
@@ -220,6 +295,33 @@ body {
   color: var(--text-primary);
 }
 
+.checkbox-label-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.effect-text {
+  font-size: 0.8rem;
+  color: var(--success);
+  font-weight: 400;
+}
+
+/* Attack Type Selector */
+.attack-type-selector {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.attack-type-selector label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
 /* Result Section */
 .result-section {
   background: linear-gradient(135deg, rgba(211, 47, 47, 0.05), rgba(25, 118, 210, 0.05));
@@ -234,6 +336,29 @@ body {
   color: var(--primary);
 }
 
+.pre-damage-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-dark);
+}
+
+.pre-damage-label {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.pre-damage-value {
+  font-size: 1.5rem;
+  color: var(--primary);
+  font-weight: 700;
+}
 .result-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

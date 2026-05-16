@@ -1,0 +1,39 @@
+{
+  "templates": [
+    {
+      "id": "soldier",
+      "name": "兵士",
+      "atk": 80,
+      "str": 40,
+      "ratio": 100
+    },
+    {
+      "id": "knight",
+      "name": "騎士",
+      "atk": 150,
+      "str": 70,
+      "ratio": 120
+    },
+    {
+      "id": "wizard",
+      "name": "魔法使い",
+      "atk": 60,
+      "str": 30,
+      "ratio": 200
+    },
+    {
+      "id": "ranger",
+      "name": "レンジャー",
+      "atk": 120,
+      "str": 60,
+      "ratio": 140
+    },
+    {
+      "id": "assassin",
+      "name": "アサシン",
+      "atk": 160,
+      "str": 75,
+      "ratio": 180
+    }
+  ]
+}

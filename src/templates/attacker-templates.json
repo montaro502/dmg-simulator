@@ -1,0 +1,49 @@
+{
+  "templates": [
+    {
+      "id": "soldier",
+      "name": "兵士",
+      "atk": 80,
+      "str": 40,
+      "matk": 80,
+      "ratio": 100,
+      "isPhysical": true
+    },
+    {
+      "id": "knight",
+      "name": "騎士",
+      "atk": 150,
+      "str": 70,
+      "matk": 120,
+      "ratio": 120,
+      "isPhysical": true
+    },
+    {
+      "id": "wizard",
+      "name": "魔法使い",
+      "atk": 60,
+      "str": 30,
+      "matk": 200,
+      "ratio": 200,
+      "isPhysical": false
+    },
+    {
+      "id": "ranger",
+      "name": "レンジャー",
+      "atk": 120,
+      "str": 60,
+      "matk": 90,
+      "ratio": 140,
+      "isPhysical": true
+    },
+    {
+      "id": "assassin",
+      "name": "アサシン",
+      "atk": 160,
+      "str": 75,
+      "matk": 110,
+      "ratio": 180,
+      "isPhysical": true
+    }
+  ]
+}
