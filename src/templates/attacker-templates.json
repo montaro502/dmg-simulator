@@ -1,48 +1,21 @@
 {
   "templates": [
     {
-      "id": "soldier",
-      "name": "兵士",
-      "atk": 80,
-      "str": 40,
-      "matk": 80,
-      "ratio": 100,
-      "isPhysical": true
-    },
-    {
-      "id": "knight",
-      "name": "騎士",
-      "atk": 150,
-      "str": 70,
-      "matk": 120,
-      "ratio": 120,
-      "isPhysical": true
-    },
-    {
-      "id": "wizard",
-      "name": "魔法使い",
-      "atk": 60,
-      "str": 30,
-      "matk": 200,
-      "ratio": 200,
+      "id": "MD_BETELGEUSE",
+      "name": "ベテルギウス - テトラ -",
+      "atk": 130000,
+      "str": 633,
+      "matk": 520000,
+      "ratio": 200000,
       "isPhysical": false
     },
     {
-      "id": "ranger",
-      "name": "レンジャー",
-      "atk": 120,
-      "str": 60,
-      "matk": 90,
-      "ratio": 140,
-      "isPhysical": true
-    },
-    {
-      "id": "assassin",
-      "name": "アサシン",
-      "atk": 160,
-      "str": 75,
-      "matk": 110,
-      "ratio": 180,
+      "id": "JP_MAZEMOB_129",
+      "name": "深海の魔女 - ブレス -",
+      "atk": 98301,
+      "str": 390000,
+      "matk": 98301,
+      "ratio": 30000,
       "isPhysical": true
     }
   ]

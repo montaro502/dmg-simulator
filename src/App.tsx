@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { calculateDamage, DamageOutput } from './utils/damageCalculator'
+import { calcDefReduction, calcMdefReduction, calcMresReduction, calcResReduction, calculateAssumBonus, calculateDamage, DamageOutput } from './utils/damageCalculator'
 import templatesData from './templates/attacker-templates.json'
 
 interface AttackerStats {
@@ -30,7 +30,7 @@ interface DefenderStats {
   mres: number
   res: number
   assum: boolean
-  enaco: boolean
+  enaco: number
   ukumakura: boolean
   kongou: boolean
 }
@@ -56,7 +56,7 @@ function App() {
     mres: 50,
     res: 50,
     assum: false,
-    enaco: false,
+    enaco: 0,
     ukumakura: false,
     kongou: false,
   })
@@ -87,6 +87,10 @@ function App() {
       raceResistance: defender.raceResistance,
       elementResistance: defender.elementResistance,
       isPhysical: attacker.isPhysical,
+      enaco: defender.enaco,
+      assum: defender.assum,
+      ukumakura: defender.ukumakura,
+      kongou: defender.kongou,
     })
     setResult(damage)
   }, [attacker, defender])
@@ -134,6 +138,31 @@ function App() {
       : attacker.matk * (attacker.ratio / 100)
   )
 
+  const reductionPercent = result && preReductionDamage > 0
+    ? (preReductionDamage - result.avgDamage) / preReductionDamage * 100
+    : null
+  const formattedReduction = reductionPercent !== null ? `${reductionPercent.toFixed(2)}%` : '-' 
+
+  const calcSimpleResistance = (resistance: number): number => {
+    return resistance / 100;
+  }
+
+  let assumBonusDef = 0, assumBonusMdef = 0;
+  if (defender.assum) {
+    assumBonusDef = calculateAssumBonus(defender.def);
+    assumBonusMdef = calculateAssumBonus(defender.mdef);
+  }
+  const perItemReductions = {
+    def: calcDefReduction(defender.def, assumBonusDef),
+    mdef: calcMdefReduction(defender.mdef, assumBonusMdef),
+    res: calcResReduction(defender.res),
+    mres: calcMresReduction(defender.mres),
+    race: calcSimpleResistance(defender.raceResistance),
+    element: calcSimpleResistance(defender.elementResistance),
+    boss: calcSimpleResistance(defender.bossResistance),
+    size: calcSimpleResistance(defender.sizeResistance),
+  }
+
   const handleReset = () => {
     setAttacker({
       atk: 100,
@@ -153,7 +182,7 @@ function App() {
       mres: 50,
       res: 50,
       assum: false,
-      enaco: false,
+      enaco: 0,
       ukumakura: false,
       kongou: false,
     })
@@ -272,6 +301,7 @@ function App() {
               <span className="pre-damage-value">{preReductionDamage.toLocaleString()}</span>
             </div>
             <h2>防御側（自キャラ）のステータス</h2>
+            {/* 各項目の横に軽減率を表示（縦並びに見せるため各ブロック内に表示） */}
             <div className="input-grid defense-grid">
               <div className="stat-with-bonus">
                 <div className="stat-input-group">
@@ -286,6 +316,7 @@ function App() {
                     min="0"
                     max="95"
                   />
+                  <span className="stat-reduction">{(perItemReductions.boss * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
@@ -302,6 +333,7 @@ function App() {
                     min="0"
                     max="95"
                   />
+                  <span className="stat-reduction">{(perItemReductions.size * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
@@ -318,6 +350,7 @@ function App() {
                     min="0"
                     max="95"
                   />
+                  <span className="stat-reduction">{(perItemReductions.race * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
@@ -334,12 +367,15 @@ function App() {
                     min="0"
                     max="95"
                   />
+                  <span className="stat-reduction">{(perItemReductions.element * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
               <div className="stat-with-bonus">
                 <div className="stat-input-group">
-                  <label htmlFor="def">Def</label>
+                  <label htmlFor="def">
+                    Def {defender.assum && <span className="stat-bonus">+{defender.def}</span>}
+                  </label>
                   <input
                     id="def"
                     type="number"
@@ -348,15 +384,15 @@ function App() {
                       handleDefenderChange('def', Number(e.target.value))
                     }
                   />
+                  <span className="stat-reduction">{(perItemReductions.def * 100).toFixed(2)}%</span>
                 </div>
-                {defender.assum && (
-                  <div className="stat-bonus">+{defender.def}</div>
-                )}
               </div>
 
               <div className="stat-with-bonus">
                 <div className="stat-input-group">
-                  <label htmlFor="mdef">Mdef</label>
+                  <label htmlFor="mdef">
+                    Mdef {defender.assum && <span className="stat-bonus">+{defender.mdef}</span>}
+                  </label>
                   <input
                     id="mdef"
                     type="number"
@@ -365,10 +401,8 @@ function App() {
                       handleDefenderChange('mdef', Number(e.target.value))
                     }
                   />
+                  <span className="stat-reduction">{(perItemReductions.mdef * 100).toFixed(2)}%</span>
                 </div>
-                {defender.assum && (
-                  <div className="stat-bonus">+{defender.mdef}</div>
-                )}
               </div>
 
               <div className="stat-with-bonus">
@@ -382,6 +416,7 @@ function App() {
                       handleDefenderChange('res', Number(e.target.value))
                     }
                   />
+                  <span className="stat-reduction">{(perItemReductions.res * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
@@ -396,6 +431,7 @@ function App() {
                       handleDefenderChange('mres', Number(e.target.value))
                     }
                   />
+                  <span className="stat-reduction">{(perItemReductions.mres * 100).toFixed(2)}%</span>
                 </div>
               </div>
             </div>
@@ -413,15 +449,22 @@ function App() {
                 <span>アスム</span>
               </label>
 
-              <label className="checkbox-group">
-                <input
-                  type="checkbox"
-                  checked={defender.enaco}
-                  onChange={(e) =>
-                    handleDefenderChange('enaco', e.target.checked)
-                  }
-                />
+              <label className="input-group">
                 <span>エナコ</span>
+                <select
+                  value={defender.enaco}
+                  onChange={(e) =>
+                    handleDefenderChange('enaco', Number(e.target.value))
+                  }
+                  className="enaco-select"
+                >
+                  <option value="0">なし</option>
+                  <option value="6">6%</option>
+                  <option value="12">12%</option>
+                  <option value="18">18%</option>
+                  <option value="24">24%</option>
+                  <option value="30">30%</option>
+                </select>
               </label>
 
               <label className="checkbox-group">
@@ -461,16 +504,12 @@ function App() {
               <h2>ダメージ計算結果</h2>
               <div className="result-grid">
                 <div className="result-item">
-                  <span className="result-label">最小ダメージ</span>
-                  <span className="result-value">{result.minDamage.toLocaleString()}</span>
+                  <span className="result-label">被ダメージ</span>
+                  <span className="result-value highlight">{Math.ceil(result.avgDamage).toLocaleString()}</span>
                 </div>
                 <div className="result-item">
-                  <span className="result-label">最大ダメージ</span>
-                  <span className="result-value">{result.maxDamage.toLocaleString()}</span>
-                </div>
-                <div className="result-item">
-                  <span className="result-label">平均ダメージ</span>
-                  <span className="result-value highlight">{result.avgDamage.toLocaleString()}</span>
+                  <span className="result-label">総軽減率</span>
+                  <span className="result-value">{formattedReduction}</span>
                 </div>
               </div>
             </section>

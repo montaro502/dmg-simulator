@@ -16,6 +16,10 @@ export interface DamageInput {
   raceResistance: number;       // 種族耐性
   elementResistance: number;    // 属性耐性
   isPhysical: boolean;   // 物理攻撃か魔法攻撃か
+  enaco: number;         // エナジーコート軽減率（0, 6, 12, 18, 24, 30%）
+  assum: boolean;    // アスムの有無
+  ukumakura: boolean;    // うずくまるの有無（80%軽減）
+  kongou: boolean;       // 金剛の有無（90%軽減）
 }
 
 export interface DamageOutput {
@@ -25,26 +29,37 @@ export interface DamageOutput {
 }
 
 /**
- * 防御力による軽減率を計算（物理攻撃）
- * 軽減率(%) = 100-((4000 + DEF) / (4000 + DEF * 10)*100)
+ * アスムによる防御力の上昇分を計算
+ * @param def Def or MDef
+ * @returns アスムがある場合の追加分の防御力
  */
-function calcDefReduction(def: number): number {
-  return 100 - ((4000 + def) / (4000 + def * 10) * 100);
+export function calculateAssumBonus(def: number): number {
+  return def ;
+}
+
+/**
+ * 防御力による軽減率を計算（物理攻撃）
+ * 軽減率 = 1 - (4000 + DEF) / (4000 + DEF * 10)
+ */
+export function calcDefReduction(def: number, assumBonus: number): number {
+  const effectiveDef = def + assumBonus;
+  return 1 - (4000 + effectiveDef) / (4000 + effectiveDef * 10);
 }
 
 /**
  * MDEF による軽減率を計算（魔法攻撃）
- * 軽減率(%) = 100-((1000 + MDEF) / (1000 + MDEF * 10)*100)
+ * 軽減率 = 1 - (1000 + MDEF) / (1000 + MDEF * 10)
  */
-function calcMdefReduction(mdef: number): number {
-  return 100 - ((1000 + mdef) / (1000 + mdef * 10) * 100);
+export function calcMdefReduction(mdef: number, assumBonus: number): number {
+  const effectiveMdef = mdef + assumBonus;
+  return 1 - (1000 + effectiveMdef) / (1000 + effectiveMdef * 10);
 }
 
 /**
  * RES による軽減率を計算（物理攻撃）
  * 軽減率 = 1 - (2000 + Res) / (2000 + Res * 5)
  */
-function calcResReduction(res: number): number {
+export function calcResReduction(res: number): number {
   return 1 - (2000 + res) / (2000 + res * 5);
 }
 
@@ -52,14 +67,14 @@ function calcResReduction(res: number): number {
  * MRES による軽減率を計算（魔法攻撃）
  * 軽減率 = 1 - (2000 + Mres) / (2000 + Mres * 5)
  */
-function calcMresReduction(mres: number): number {
+export function calcMresReduction(mres: number): number {
   return 1 - (2000 + mres) / (2000 + mres * 5);
 }
 
 /**
  * 耐性による軽減率を計算
  */
-function calcResistanceReduction(resistance: number): number {
+export function calcResistanceReduction(resistance: number): number {
   return resistance / 100;
 }
 
@@ -80,31 +95,46 @@ function calculatePhysicalDamage(input: DamageInput): DamageOutput {
   // Atk部分への軽減
   let atkAfterResist = atkDamage * (1 - raceResist) * (1 - elementResist);
   
-  // ボス耐性とサイズ耐性はAtkだけに適用
+  // Atkにはボス耐性とサイズ耐性、種族耐性と属性耐性が適用される
   const bossResist = calcResistanceReduction(input.bossResistance);
   const sizeResist = calcResistanceReduction(input.sizeResistance);
-  atkAfterResist = atkAfterResist * (1 - bossResist) * (1 - sizeResist);
+  atkAfterResist = atkAfterResist * (1 - bossResist) * (1 - sizeResist)* (1 - raceResist) * (1 - elementResist);
   
-  // Str部分への軽減（種族耐性と属性耐性のみ）
-  let strAfterResist = strDamage * (1 - raceResist) * (1 - elementResist);
+  // Str部分には種族耐性のみが適用される
+  let strAfterResist = strDamage * (1 - raceResist);
+
+  let totalDamage = atkAfterResist + strAfterResist;
   
   // DEF軽減
-  const defReduction = calcDefReduction(input.def) / 100;
-  atkAfterResist = atkAfterResist * (1 - defReduction);
+  let assumBonus = 0;
+  if (input.assum) {
+    assumBonus = calculateAssumBonus(input.def);
+  }
+  const defReduction = calcDefReduction(input.def, assumBonus);
+  totalDamage = totalDamage * (1 - defReduction);
   
   // RES軽減
   const resReduction = calcResReduction(input.res);
-  const totalDamage = (strAfterResist + atkAfterResist) * (1 - resReduction);
+  totalDamage = totalDamage * (1 - resReduction);
   
-  // 変動幅（±10%）
-  const minDamage = Math.floor(totalDamage * 0.9);
-  const maxDamage = Math.floor(totalDamage * 1.1);
-  const avgDamage = Math.floor((minDamage + maxDamage) / 2);
+  // うずくまる軽減（80%）
+  if (input.ukumakura) {
+    totalDamage = totalDamage * (1 - 0.8);
+  }
+  
+  // 金剛軽減（90%）
+  if (input.kongou) {
+    totalDamage = totalDamage * (1 - 0.9);
+  }
+  
+  // エナジーコート軽減
+  const enacoReduction = input.enaco / 100;
+  totalDamage = totalDamage * (1 - enacoReduction);
   
   return {
-    minDamage: Math.max(1, minDamage),
-    maxDamage: Math.max(1, maxDamage),
-    avgDamage: Math.max(1, avgDamage),
+    minDamage: Math.max(1, totalDamage),
+    maxDamage: Math.max(1, totalDamage),
+    avgDamage: Math.max(1, totalDamage),
   };
 }
 
@@ -126,22 +156,35 @@ function calculateMagicalDamage(input: DamageInput): DamageOutput {
   damage = damage * (1 - bossResist) * (1 - sizeResist) * (1 - raceResist) * (1 - elementResist);
   
   // MDEF軽減
-  const mdefReduction = calcMdefReduction(input.mdef) / 100;
+  let assumBonus = 0;
+  if (input.assum) {
+    assumBonus = calculateAssumBonus(input.mdef);
+  }
+  const mdefReduction = calcMdefReduction(input.mdef, assumBonus);
   damage = damage * (1 - mdefReduction);
   
   // MRES軽減
   const mresReduction = calcMresReduction(input.mres);
   damage = damage * (1 - mresReduction);
   
-  // 変動幅（±10%）
-  const minDamage = Math.floor(damage * 0.9);
-  const maxDamage = Math.floor(damage * 1.1);
-  const avgDamage = Math.floor((minDamage + maxDamage) / 2);
+  // うずくまる軽減（80%）
+  if (input.ukumakura) {
+    damage = damage * (1 - 0.8);
+  }
   
+  // 金剛軽減（90%）
+  if (input.kongou) {
+    damage = damage * (1 - 0.9);
+  }
+  
+  // エナジーコート軽減
+  const enacoReduction = input.enaco / 100;
+  damage = damage * (1 - enacoReduction);
+    
   return {
-    minDamage: Math.max(1, minDamage),
-    maxDamage: Math.max(1, maxDamage),
-    avgDamage: Math.max(1, avgDamage),
+    minDamage: Math.max(1, damage),
+    maxDamage: Math.max(1, damage),
+    avgDamage: Math.max(1, damage),
   };
 }
 
