@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { calcDefReduction, calcMdefReduction, calcMresReduction, calcResReduction, calculateAssumBonus, calculateDamage, DamageOutput } from './utils/damageCalculator'
 import templatesData from './templates/attacker-templates.json'
 
-const DEFENDER_STORAGE_KEY = 'ro-defender-stats'
+const DEFENDER_PRESETS_STORAGE_KEY = 'ro-defender-presets'
+const SELECTED_PRESET_STORAGE_KEY = 'ro-selected-preset-id'
 
 interface AttackerStats {
   atk: number
@@ -37,6 +38,12 @@ interface DefenderStats {
   kongou: boolean
 }
 
+interface DefenderPreset {
+  id: string
+  name: string
+  stats: DefenderStats
+}
+
 const defaultDefenderStats: DefenderStats = {
   bossResistance: 0,
   sizeResistance: 0,
@@ -52,16 +59,32 @@ const defaultDefenderStats: DefenderStats = {
   kongou: false,
 }
 
-function getDefaultDefenderStats(): DefenderStats {
+const defaultPresets: DefenderPreset[] = [
+  { id: '1', name: 'プリセット1', stats: defaultDefenderStats },
+]
+
+function getPresetsFromStorage(): DefenderPreset[] {
   try {
-    const saved = localStorage.getItem(DEFENDER_STORAGE_KEY)
+    const saved = localStorage.getItem(DEFENDER_PRESETS_STORAGE_KEY)
     if (saved) {
       return JSON.parse(saved)
     }
   } catch (e) {
-    console.error('Failed to load defender stats from localStorage:', e)
+    console.error('Failed to load presets from localStorage:', e)
   }
-  return defaultDefenderStats
+  return defaultPresets
+}
+
+function getSelectedPresetId(): string {
+  try {
+    const saved = localStorage.getItem(SELECTED_PRESET_STORAGE_KEY)
+    if (saved) {
+      return saved
+    }
+  } catch (e) {
+    console.error('Failed to load selected preset id from localStorage:', e)
+  }
+  return defaultPresets[0].id
 }
 
 function App() {
@@ -75,7 +98,16 @@ function App() {
     isPhysical: true,
   })
 
-  const [defender, setDefender] = useState<DefenderStats>(getDefaultDefenderStats())
+  const [defender, setDefender] = useState<DefenderStats>(() => {
+    const presets = getPresetsFromStorage()
+    const selectedId = getSelectedPresetId()
+    const selectedPreset = presets.find(p => p.id === selectedId)
+    return selectedPreset ? selectedPreset.stats : defaultDefenderStats
+  })
+
+  const [presets, setPresets] = useState<DefenderPreset[]>(getPresetsFromStorage())
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(getSelectedPresetId())
+  const [newPresetName, setNewPresetName] = useState<string>('')
 
   const [result, setResult] = useState<DamageOutput | null>(null)
 
@@ -87,14 +119,31 @@ function App() {
     setTemplates(templatesData.templates)
   }, [])
 
-  // ローカルストレージに保存
+  // プリセットをローカルストレージに保存
   useEffect(() => {
     try {
-      localStorage.setItem(DEFENDER_STORAGE_KEY, JSON.stringify(defender))
+      localStorage.setItem(DEFENDER_PRESETS_STORAGE_KEY, JSON.stringify(presets))
     } catch (e) {
-      console.error('Failed to save defender stats to localStorage:', e)
+      console.error('Failed to save presets to localStorage:', e)
     }
-  }, [defender])
+  }, [presets])
+
+  // 選択されたプリセットIDを保存
+  useEffect(() => {
+    try {
+      localStorage.setItem(SELECTED_PRESET_STORAGE_KEY, selectedPresetId)
+    } catch (e) {
+      console.error('Failed to save selected preset id to localStorage:', e)
+    }
+  }, [selectedPresetId])
+
+  // 選択されたプリセットに応じてdefenderを更新
+  useEffect(() => {
+    const selected = presets.find(p => p.id === selectedPresetId)
+    if (selected) {
+      setDefender(selected.stats)
+    }
+  }, [selectedPresetId, presets])
 
   // パラメータが変更されたら自動計算
   useEffect(() => {
@@ -155,6 +204,48 @@ function App() {
     }
     
     setDefender(newDefender)
+    
+    // 現在のプリセットを更新
+    const updatedPresets = presets.map(p => 
+      p.id === selectedPresetId ? { ...p, stats: newDefender } : p
+    )
+    setPresets(updatedPresets)
+  }
+
+  const handleSavePreset = () => {
+    if (!newPresetName.trim()) {
+      alert('プリセット名を入力してください')
+      return
+    }
+    
+    const newPreset: DefenderPreset = {
+      id: Date.now().toString(),
+      name: newPresetName,
+      stats: defender,
+    }
+    
+    const updatedPresets = [...presets, newPreset]
+    setPresets(updatedPresets)
+    setSelectedPresetId(newPreset.id)
+    setNewPresetName('')
+  }
+
+  const handleDeletePreset = (presetId: string) => {
+    if (presets.length <= 1) {
+      alert('最後のプリセットは削除できません')
+      return
+    }
+    
+    const updatedPresets = presets.filter(p => p.id !== presetId)
+    setPresets(updatedPresets)
+    
+    if (selectedPresetId === presetId) {
+      setSelectedPresetId(updatedPresets[0].id)
+    }
+  }
+
+  const handlePresetChange = (presetId: string) => {
+    setSelectedPresetId(presetId)
   }
 
   const preReductionDamage = Math.floor(
@@ -188,18 +279,6 @@ function App() {
     size: calcSimpleResistance(defender.sizeResistance),
   }
 
-  const handleReset = () => {
-    setAttacker({
-      atk: 100,
-      str: 50,
-      matk: 100,
-      ratio: 100,
-      isPhysical: true,
-    })
-    setSelectedTemplate('')
-    setDefender(defaultDefenderStats)
-    setResult(null)
-  }
 
   return (
     <div className="container">
@@ -254,7 +333,7 @@ function App() {
               </div>
             </div>
             
-            <div className="input-grid">
+            <div className="input-grid preset-row">
               <div className="input-group">
                 <label htmlFor="atk">Atk</label>
                 <input
@@ -312,6 +391,49 @@ function App() {
               <span className="pre-damage-value">{preReductionDamage.toLocaleString()}</span>
             </div>
             <h2>防御側（自キャラ）のステータス</h2>
+            
+            {/* プリセット選択 */}
+            <div className="input-grid">
+              <div className="input-group">
+                <label htmlFor="preset-select">プリセット選択</label>
+                <select
+                  id="preset-select"
+                  value={selectedPresetId}
+                  onChange={(e) => handlePresetChange(e.target.value)}
+                  className="preset-select"
+                >
+                  {presets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="input-group">
+                <label htmlFor="preset-name">新規プリセット名</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    id="preset-name"
+                    type="text"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    placeholder="プリセット名を入力"
+                  />
+                  <button className="btn btn-small" onClick={handleSavePreset}>
+                    保存
+                  </button>
+                <button 
+                  className="btn btn-small btn-danger" 
+                  onClick={() => handleDeletePreset(selectedPresetId)}
+                  disabled={presets.length <= 1}
+                >
+                  削除
+                </button>
+                </div>
+              </div>
+            </div>
+            
             {/* 各項目の横に軽減率を表示（縦並びに見せるため各ブロック内に表示） */}
             <div className="input-grid defense-grid">
               <div className="stat-with-bonus">
@@ -500,13 +622,6 @@ function App() {
                 <span>金剛</span>
               </label>
             </div>
-          </section>
-
-          {/* 計算ボタン */}
-          <section className="section button-section">
-            <button className="btn btn-secondary" onClick={handleReset}>
-              リセット
-            </button>
           </section>
 
           {/* 結果表示 */}
