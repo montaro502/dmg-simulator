@@ -6,7 +6,7 @@
       "atk": 130000,
       "str": 633,
       "matk": 520000,
-      "ratio": 200000,
+      "ratio": 20000,
       "isPhysical": false
     },
     {
@@ -15,7 +15,7 @@
       "atk": 98301,
       "str": 390000,
       "matk": 98301,
-      "ratio": 30000,
+      "ratio": 3000,
       "isPhysical": true
     }
   ]
