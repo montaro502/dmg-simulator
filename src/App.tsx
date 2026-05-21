@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { calcDefReduction, calcMdefReduction, calcMresReduction, calcResReduction, calculateAssumBonus, calculateDamage, DamageOutput } from './utils/damageCalculator'
 import templatesData from './templates/attacker-templates.json'
 
+const DEFENDER_STORAGE_KEY = 'ro-defender-stats'
+
 interface AttackerStats {
   atk: number
   str: number
@@ -35,6 +37,33 @@ interface DefenderStats {
   kongou: boolean
 }
 
+const defaultDefenderStats: DefenderStats = {
+  bossResistance: 0,
+  sizeResistance: 0,
+  raceResistance: 0,
+  elementResistance: 0,
+  def: 50,
+  mdef: 50,
+  mres: 50,
+  res: 50,
+  assum: false,
+  enaco: 0,
+  ukumakura: false,
+  kongou: false,
+}
+
+function getDefaultDefenderStats(): DefenderStats {
+  try {
+    const saved = localStorage.getItem(DEFENDER_STORAGE_KEY)
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch (e) {
+    console.error('Failed to load defender stats from localStorage:', e)
+  }
+  return defaultDefenderStats
+}
+
 function App() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
@@ -46,20 +75,7 @@ function App() {
     isPhysical: true,
   })
 
-  const [defender, setDefender] = useState<DefenderStats>({
-    bossResistance: 0,
-    sizeResistance: 0,
-    raceResistance: 0,
-    elementResistance: 0,
-    def: 0,
-    mdef: 0,
-    mres: 0,
-    res: 0,
-    assum: false,
-    enaco: 0,
-    ukumakura: false,
-    kongou: false,
-  })
+  const [defender, setDefender] = useState<DefenderStats>(getDefaultDefenderStats())
 
   const [result, setResult] = useState<DamageOutput | null>(null)
 
@@ -70,6 +86,15 @@ function App() {
   useEffect(() => {
     setTemplates(templatesData.templates)
   }, [])
+
+  // ローカルストレージに保存
+  useEffect(() => {
+    try {
+      localStorage.setItem(DEFENDER_STORAGE_KEY, JSON.stringify(defender))
+    } catch (e) {
+      console.error('Failed to save defender stats to localStorage:', e)
+    }
+  }, [defender])
 
   // パラメータが変更されたら自動計算
   useEffect(() => {
@@ -172,21 +197,7 @@ function App() {
       isPhysical: true,
     })
     setSelectedTemplate('')
-    setDefender({
-      bossResistance: 0,
-      sizeResistance: 0,
-      raceResistance: 0,
-      elementResistance: 0,
-      def: 50,
-      mdef: 50,
-      mres: 50,
-      res: 50,
-      assum: false,
-      enaco: 0,
-      ukumakura: false,
-      kongou: false,
-    })
-    setSelectedTemplate('')
+    setDefender(defaultDefenderStats)
     setResult(null)
   }
 
