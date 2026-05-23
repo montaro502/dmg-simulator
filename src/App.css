@@ -410,6 +410,12 @@ body {
   color: var(--primary);
 }
 
+.result-section .subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
 .pre-damage-box {
   display: flex;
   align-items: center;

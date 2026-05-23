@@ -627,7 +627,7 @@ function App() {
           {/* 結果表示 */}
           {result && (
             <section className="section result-section">
-              <h2>ダメージ計算結果</h2>
+              <h2>ダメージ計算結果<span className='subtitle'>※最小倍率:0.8倍 最大倍率:1.2倍</span></h2>
               <div className="result-grid">
                 <div className="result-item">
                   <span className="result-label">最小被ダメージ</span>
@@ -655,7 +655,7 @@ function App() {
         <p>
           このツールは概算値です。実際のゲーム内ダメージと異なる場合があります。
         </p>
-        <p className="footer-version">v0.1.0</p>
+        <p className="footer-version">v0.1.1</p>
       </footer>
     </div>
   )
