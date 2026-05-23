@@ -17,6 +17,15 @@
       "matk": 98301,
       "ratio": 3000,
       "isPhysical": true
+    },
+    {
+      "id": "EP18_MD_DEMI_FREYJA_L",
+      "name": "デミフレイヤ - テトラ -",
+      "atk": 130000,
+      "str": 240,
+      "matk": 130000,
+      "ratio": 10000,
+      "isPhysical": false
     }
   ]
 }

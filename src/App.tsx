@@ -630,8 +630,16 @@ function App() {
               <h2>ダメージ計算結果</h2>
               <div className="result-grid">
                 <div className="result-item">
-                  <span className="result-label">被ダメージ</span>
+                  <span className="result-label">最小被ダメージ</span>
+                  <span className="result-value highlight">{Math.ceil(result.minDamage).toLocaleString()}</span>
+                </div>
+                <div className="result-item">
+                  <span className="result-label">平均被ダメージ</span>
                   <span className="result-value highlight">{Math.ceil(result.avgDamage).toLocaleString()}</span>
+                </div>
+                <div className="result-item">
+                  <span className="result-label">最大被ダメージ</span>
+                  <span className="result-value highlight">{Math.ceil(result.maxDamage).toLocaleString()}</span>
                 </div>
                 <div className="result-item">
                   <span className="result-label">総軽減率</span>

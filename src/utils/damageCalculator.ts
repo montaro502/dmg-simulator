@@ -1,6 +1,11 @@
 /**
  * ラグナロクオンラインのダメージ計算ロジック
  */
+// Atkに対する最小ダメージと最大ダメージのブレ幅を定義
+// ダメージは±20%のブレがあると仮定
+const DAMAGE_MIN_RATIO = 0.8;
+const DAMAGE_MAX_RATIO = 1.2;
+
 
 export interface DamageInput {
   atk: number;           // 攻撃力
@@ -85,56 +90,71 @@ function calculatePhysicalDamage(input: DamageInput): DamageOutput {
   const ratio = input.skillAtk / 100;
   
   // 基本ダメージ = (Str * 倍率) + (Atk * 倍率)
-  const strDamage = input.str * ratio;
-  const atkDamage = input.atk * ratio;
-  
-  // 耐性軽減（種族耐性と属性耐性は両方に適用）
-  const raceResist = calcResistanceReduction(input.raceResistance);
-  const elementResist = calcResistanceReduction(input.elementResistance);
-  
-  // Atk部分への軽減
-  let atkAfterResist = atkDamage * (1 - raceResist) * (1 - elementResist);
-  
-  // Atkにはボス耐性とサイズ耐性、種族耐性と属性耐性が適用される
-  const bossResist = calcResistanceReduction(input.bossResistance);
-  const sizeResist = calcResistanceReduction(input.sizeResistance);
-  atkAfterResist = atkAfterResist * (1 - bossResist) * (1 - sizeResist)* (1 - raceResist) * (1 - elementResist);
-  
-  // Str部分には種族耐性のみが適用される
-  let strAfterResist = strDamage * (1 - raceResist);
+  const avgDamage = {
+    strDamage: input.str * ratio,
+    atkDamage: input.atk * ratio,
+  };
+  const minDamage = {
+    strDamage: input.str * ratio,
+    atkDamage: input.atk * ratio * DAMAGE_MIN_RATIO,
+  };
+  const maxDamage = {
+    strDamage: input.str * ratio,
+    atkDamage: input.atk * ratio * DAMAGE_MAX_RATIO,
+  };
 
-  let totalDamage = atkAfterResist + strAfterResist;
+  const calcDamage = (damage: { strDamage: number; atkDamage: number }, input: DamageInput) => {
+    // 耐性軽減（種族耐性と属性耐性は両方に適用）
+    const raceResist = calcResistanceReduction(input.raceResistance);
+    const elementResist = calcResistanceReduction(input.elementResistance);
+    
+    // Atk部分への軽減
+    let atkAfterResist = damage.atkDamage * (1 - raceResist) * (1 - elementResist);
+    
+    // Atkにはボス耐性とサイズ耐性、種族耐性と属性耐性が適用される
+    const bossResist = calcResistanceReduction(input.bossResistance);
+    const sizeResist = calcResistanceReduction(input.sizeResistance);
+    atkAfterResist = atkAfterResist * (1 - bossResist) * (1 - sizeResist)* (1 - raceResist) * (1 - elementResist);
+    
+    // Str部分には種族耐性のみが適用される
+    let strAfterResist = damage.strDamage * (1 - raceResist);
+
+    let totalDamage = atkAfterResist + strAfterResist;
+    
+    // DEF軽減
+    let assumBonus = 0;
+    if (input.assum) {
+      assumBonus = calculateAssumBonus(input.def);
+    }
+    const defReduction = calcDefReduction(input.def, assumBonus);
+    totalDamage = totalDamage * (1 - defReduction);
+    
+    // RES軽減
+    const resReduction = calcResReduction(input.res);
+    totalDamage = totalDamage * (1 - resReduction);
+    
+    // うずくまる軽減（80%）
+    if (input.ukumakura) {
+      totalDamage = totalDamage * (1 - 0.8);
+    }
+    
+    // 金剛軽減（90%）
+    if (input.kongou) {
+      totalDamage = totalDamage * (1 - 0.9);
+    }
+    
+    // エナジーコート軽減
+    const enacoReduction = input.enaco / 100;
+    totalDamage = totalDamage * (1 - enacoReduction);
+    return totalDamage;
+  };
+
   
-  // DEF軽減
-  let assumBonus = 0;
-  if (input.assum) {
-    assumBonus = calculateAssumBonus(input.def);
-  }
-  const defReduction = calcDefReduction(input.def, assumBonus);
-  totalDamage = totalDamage * (1 - defReduction);
-  
-  // RES軽減
-  const resReduction = calcResReduction(input.res);
-  totalDamage = totalDamage * (1 - resReduction);
-  
-  // うずくまる軽減（80%）
-  if (input.ukumakura) {
-    totalDamage = totalDamage * (1 - 0.8);
-  }
-  
-  // 金剛軽減（90%）
-  if (input.kongou) {
-    totalDamage = totalDamage * (1 - 0.9);
-  }
-  
-  // エナジーコート軽減
-  const enacoReduction = input.enaco / 100;
-  totalDamage = totalDamage * (1 - enacoReduction);
   
   return {
-    minDamage: Math.max(1, totalDamage),
-    maxDamage: Math.max(1, totalDamage),
-    avgDamage: Math.max(1, totalDamage),
+    minDamage: calcDamage(minDamage, input),
+    maxDamage: calcDamage(maxDamage, input),
+    avgDamage: calcDamage(avgDamage, input),
   };
 }
 
@@ -146,45 +166,51 @@ function calculateMagicalDamage(input: DamageInput): DamageOutput {
   
   // 基本ダメージ = Matk * 倍率
   let damage = input.matk * ratio;
+  let minDamage = damage * DAMAGE_MIN_RATIO;
+  let maxDamage = damage * DAMAGE_MAX_RATIO;
   
-  // 耐性軽減（すべて適用）
-  const bossResist = calcResistanceReduction(input.bossResistance);
-  const sizeResist = calcResistanceReduction(input.sizeResistance);
-  const raceResist = calcResistanceReduction(input.raceResistance);
-  const elementResist = calcResistanceReduction(input.elementResistance);
-  
-  damage = damage * (1 - bossResist) * (1 - sizeResist) * (1 - raceResist) * (1 - elementResist);
-  
-  // MDEF軽減
-  let assumBonus = 0;
-  if (input.assum) {
-    assumBonus = calculateAssumBonus(input.mdef);
-  }
-  const mdefReduction = calcMdefReduction(input.mdef, assumBonus);
-  damage = damage * (1 - mdefReduction);
-  
-  // MRES軽減
-  const mresReduction = calcMresReduction(input.mres);
-  damage = damage * (1 - mresReduction);
-  
-  // うずくまる軽減（80%）
-  if (input.ukumakura) {
-    damage = damage * (1 - 0.8);
-  }
-  
-  // 金剛軽減（90%）
-  if (input.kongou) {
-    damage = damage * (1 - 0.9);
-  }
-  
-  // エナジーコート軽減
-  const enacoReduction = input.enaco / 100;
-  damage = damage * (1 - enacoReduction);
+  const calcDamage = (damage: number, input: DamageInput) => {
+
+    // 耐性軽減（すべて適用）
+    const bossResist = calcResistanceReduction(input.bossResistance);
+    const sizeResist = calcResistanceReduction(input.sizeResistance);
+    const raceResist = calcResistanceReduction(input.raceResistance);
+    const elementResist = calcResistanceReduction(input.elementResistance);
+    
+    damage = damage * (1 - bossResist) * (1 - sizeResist) * (1 - raceResist) * (1 - elementResist);
+    
+    // MDEF軽減
+    let assumBonus = 0;
+    if (input.assum) {
+      assumBonus = calculateAssumBonus(input.mdef);
+    }
+    const mdefReduction = calcMdefReduction(input.mdef, assumBonus);
+    damage = damage * (1 - mdefReduction);
+    
+    // MRES軽減
+    const mresReduction = calcMresReduction(input.mres);
+    damage = damage * (1 - mresReduction);
+    
+    // うずくまる軽減（80%）
+    if (input.ukumakura) {
+      damage = damage * (1 - 0.8);
+    }
+    
+    // 金剛軽減（90%）
+    if (input.kongou) {
+      damage = damage * (1 - 0.9);
+    }
+    
+    // エナジーコート軽減
+    const enacoReduction = input.enaco / 100;
+    damage = damage * (1 - enacoReduction);
+    return damage;
+  };
     
   return {
-    minDamage: Math.max(1, damage),
-    maxDamage: Math.max(1, damage),
-    avgDamage: Math.max(1, damage),
+    minDamage: calcDamage(minDamage, input),
+    maxDamage: calcDamage(maxDamage, input),
+    avgDamage: calcDamage(damage, input),
   };
 }
 
