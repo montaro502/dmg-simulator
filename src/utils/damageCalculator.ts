@@ -20,6 +20,7 @@ export interface DamageInput {
   sizeResistance: number;       // サイズ耐性
   raceResistance: number;       // 種族耐性
   elementResistance: number;    // 属性耐性
+  armorElementReduction: number; // 属性鎧による軽減率
   isPhysical: boolean;   // 物理攻撃か魔法攻撃か
   enaco: number;         // エナジーコート軽減率（0, 6, 12, 18, 24, 30%）
   assum: boolean;    // アスムの有無
@@ -107,15 +108,15 @@ function calculatePhysicalDamage(input: DamageInput): DamageOutput {
     // 耐性軽減（種族耐性と属性耐性は両方に適用）
     const raceResist = calcResistanceReduction(input.raceResistance);
     const elementResist = calcResistanceReduction(input.elementResistance);
-    
-    // Atk部分への軽減
-    let atkAfterResist = damage.atkDamage * (1 - raceResist) * (1 - elementResist);
-    
+        
     // Atkにはボス耐性とサイズ耐性、種族耐性と属性耐性が適用される
     const bossResist = calcResistanceReduction(input.bossResistance);
     const sizeResist = calcResistanceReduction(input.sizeResistance);
-    atkAfterResist = atkAfterResist * (1 - bossResist) * (1 - sizeResist)* (1 - raceResist) * (1 - elementResist);
-    
+    let atkAfterResist = damage.atkDamage * (1 - bossResist) * (1 - sizeResist) * (1 - raceResist) * (1 - elementResist);
+    // 属性鎧による軽減もAtk部分に適用
+    const armorElement = calcResistanceReduction(input.armorElementReduction);
+    atkAfterResist = atkAfterResist * (1 - armorElement);
+
     // Str部分には種族耐性のみが適用される
     let strAfterResist = damage.strDamage * (1 - raceResist);
 
@@ -146,6 +147,7 @@ function calculatePhysicalDamage(input: DamageInput): DamageOutput {
     // エナジーコート軽減
     const enacoReduction = input.enaco / 100;
     totalDamage = totalDamage * (1 - enacoReduction);
+
     return totalDamage;
   };
 
@@ -204,6 +206,9 @@ function calculateMagicalDamage(input: DamageInput): DamageOutput {
     // エナジーコート軽減
     const enacoReduction = input.enaco / 100;
     damage = damage * (1 - enacoReduction);
+
+    const armorElementReduction = calcResistanceReduction(input.armorElementReduction);
+    damage = damage * (1 - armorElementReduction);
     return damage;
   };
     

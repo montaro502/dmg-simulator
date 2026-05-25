@@ -28,6 +28,7 @@ interface DefenderStats {
   sizeResistance: number
   raceResistance: number
   elementResistance: number
+  armorElementReduction: number
   def: number
   mdef: number
   mres: number
@@ -49,6 +50,7 @@ const defaultDefenderStats: DefenderStats = {
   sizeResistance: 0,
   raceResistance: 0,
   elementResistance: 0,
+  armorElementReduction: 0,
   def: 50,
   mdef: 50,
   mres: 50,
@@ -63,11 +65,21 @@ const defaultPresets: DefenderPreset[] = [
   { id: '1', name: 'プリセット1', stats: defaultDefenderStats },
 ]
 
+function normalizeDefenderStats(stats: Partial<DefenderStats>): DefenderStats {
+  return {
+    ...defaultDefenderStats,
+    ...stats,
+  }
+}
+
 function getPresetsFromStorage(): DefenderPreset[] {
   try {
     const saved = localStorage.getItem(DEFENDER_PRESETS_STORAGE_KEY)
     if (saved) {
-      return JSON.parse(saved)
+      return JSON.parse(saved).map((preset: DefenderPreset) => ({
+        ...preset,
+        stats: normalizeDefenderStats(preset.stats),
+      }))
     }
   } catch (e) {
     console.error('Failed to load presets from localStorage:', e)
@@ -102,7 +114,7 @@ function App() {
     const presets = getPresetsFromStorage()
     const selectedId = getSelectedPresetId()
     const selectedPreset = presets.find(p => p.id === selectedId)
-    return selectedPreset ? selectedPreset.stats : defaultDefenderStats
+    return selectedPreset ? normalizeDefenderStats(selectedPreset.stats) : defaultDefenderStats
   })
 
   const [presets, setPresets] = useState<DefenderPreset[]>(getPresetsFromStorage())
@@ -141,7 +153,7 @@ function App() {
   useEffect(() => {
     const selected = presets.find(p => p.id === selectedPresetId)
     if (selected) {
-      setDefender(selected.stats)
+      setDefender(normalizeDefenderStats(selected.stats))
     }
   }, [selectedPresetId, presets])
 
@@ -160,6 +172,7 @@ function App() {
       sizeResistance: defender.sizeResistance,
       raceResistance: defender.raceResistance,
       elementResistance: defender.elementResistance,
+      armorElementReduction: defender.armorElementReduction,
       isPhysical: attacker.isPhysical,
       enaco: defender.enaco,
       assum: defender.assum,
@@ -275,6 +288,7 @@ function App() {
     mres: calcMresReduction(defender.mres),
     race: calcSimpleResistance(defender.raceResistance),
     element: calcSimpleResistance(defender.elementResistance),
+    armorElement: calcSimpleResistance(defender.armorElementReduction),
     boss: calcSimpleResistance(defender.bossResistance),
     size: calcSimpleResistance(defender.sizeResistance),
   }
@@ -501,6 +515,23 @@ function App() {
                     max="95"
                   />
                   <span className="stat-reduction">{(perItemReductions.element * 100).toFixed(2)}%</span>
+                </div>
+              </div>
+
+              <div className="stat-with-bonus">
+                <div className="stat-input-group">
+                  <label htmlFor="armorElementReduction">属性鎧軽減 (%)</label>
+                  <input
+                    id="armorElementReduction"
+                    type="number"
+                    value={defender.armorElementReduction}
+                    onChange={(e) =>
+                      handleDefenderChange('armorElementReduction', Number(e.target.value))
+                    }
+                    min="0"
+                    max="100"
+                  />
+                  <span className="stat-reduction">{(perItemReductions.armorElement * 100).toFixed(2)}%</span>
                 </div>
               </div>
 
